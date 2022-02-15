@@ -1,0 +1,41 @@
+import os 
+
+from pathlib import Path   
+
+configfile: "GSTF_test.json"
+
+directories, files = glob_wildcards(config["dir"]["outdir"]+'splitted_genetrees/{dir}/{file}_genetree.nhx')
+
+rule all:
+	input: 
+	    expand([config["dir"]["outdir"]+'homology_splitted_trees/{dir}/{file}_homology.csv',config["dir"]["outdir"]+"cnv_splitted_trees/{dir}/{file}_cnv.csv"],
+               zip, dir=directories, file=files)
+
+rule homology_classifier:
+	input:
+		config["dir"]["outdir"]+"splitted_genetrees/{dir}/{file}_genetree.nhx"
+	output:
+		 config["dir"]["outdir"]+"homology_splitted_trees/{dir}/{file}_homology.csv"
+	params:
+		filters = "one-to-one,one-to-many,many-to-one,many-to-many,paralogs",
+		out_format = "tabular",
+		scripts = config["scripts"]
+	shell:
+		"""
+			python {params.scripts}/ete_homology_classifier.py --genetree {input} --out_format {params.out_format} --filters {params.filters} > {output}  
+		"""	
+
+rule homology_cnv:
+	input:
+		config["dir"]["outdir"]+"splitted_genetrees/{dir}/{file}_genetree.nhx"
+	output:
+		config["dir"]["outdir"]+"cnv_splitted_trees/{dir}/{file}_cnv.csv"
+	params:
+		species =  config["species"],
+		scripts = config["scripts"]
+	shell:
+		"""
+			python {params.scripts}/ete_gene_cnv.py --genetree {input} --speciesorder '{params.species}' > {output}
+		"""	
+
+

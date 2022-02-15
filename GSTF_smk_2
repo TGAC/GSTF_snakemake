@@ -1,0 +1,108 @@
+configfile: "GSTF_test.json"
+
+files, = glob_wildcards(config["dir"]["outdir"]+"clusters/{i}_output.txt")
+
+
+rule all:
+	input:
+		expand(config["dir"]["outdir"]+"genetrees/{i}_tree.txt",
+			   i=files)
+
+rule rename_ids:
+	input:
+		config["dir"]["outdir"]+"clusters/{i}_output.txt"
+	output:
+		config["dir"]["outdir"]+"clusters/{i}_output.txt2"
+	shell:
+		"""
+			sed 's/_/\t/g' {input} | awk 'NF{{NF-=1}};1' | sed 's/\s/_/g' > {output}
+		"""
+
+rule cluster_fasta:
+	input:
+		list = config["dir"]["outdir"]+"clusters/{i}_output.txt",
+		fasta = config["dir"]["outdir"]+"pre_cluster_fasta/all.fasta"
+	output:
+		config["dir"]["outdir"]+"cluster_ptn_fasta/{i}_output_ptn.fa"
+	shell:
+		"""
+			seqtk subseq {input.fasta} {input.list} > {output}
+		"""
+
+rule cluster_alignment:
+	input:
+		fasta = config["dir"]["outdir"]+"cluster_ptn_fasta/{i}_output_ptn.fa"
+	output:
+		ptn_alignment = config["dir"]["outdir"]+"cluster_ptn_alignment/{i}_ptn_alignment.fasta_aln"
+	params:
+		name = config["dir"]["outdir"]+"cluster_ptn_alignment/{i}_ptn_alignment",
+		align_method = "clustalw_msa"
+	shell:
+		"""
+			t_coffee {input.fasta} -method {params.align_method} -output fasta_aln -run_name {params.name} -quiet 
+		"""
+
+rule cluster_cds:
+	input:
+		list = config["dir"]["outdir"]+"clusters/{i}_output.txt2",
+		fasta = config["dir"]["outdir"]+"pre_cluster_fasta/all_cds.fasta"
+	output:
+		config["dir"]["outdir"]+"cluster_cds_fasta/{i}_output_cds.fa"
+	shell:
+		"""
+			seqtk subseq {input.fasta} {input.list} > {output}
+		"""
+
+rule tranalign:
+	input:
+		cds_fasta = config["dir"]["outdir"]+"cluster_cds_fasta/{i}_output_cds.fa",
+		ptn_alignment = config["dir"]["outdir"]+"cluster_ptn_alignment/{i}_ptn_alignment.fasta_aln"
+	output:
+		cds_alignment = config["dir"]["outdir"]+"cluster_cds_alignment/{i}_cds_alignment.fasta_aln",  
+	params:
+		table = 0
+	shell:
+		"""
+			tranalign -asequence {input.cds_fasta} -bsequence {input.ptn_alignment} -outseq {output.cds_alignment} --table {params.table}
+		"""
+
+rule treebest:
+	input:
+		cds_alignment = config["dir"]["outdir"]+"cluster_cds_alignment/{i}_cds_alignment.fasta_aln",
+		species_tree = config["dir"]["data"]+"species.nhx",
+	output:
+		tree = config["dir"]["outdir"]+"genetrees/{i}_genetree.nhx",
+		tree_done =config["dir"]["outdir"]+"genetrees/{i}_genetree.done",
+		tmp_tree = config["dir"]["outdir"]+"genetrees/{i}_genetree.nhx_done"
+	params:
+		c = 2,
+		d = 0.15,
+		l = 0.1,
+		L = 0.2,
+		b =0.01,
+		k = "e",
+		a = "e",
+		F = 11,
+		p = "{i}"
+	shadow: "shallow"
+	shell:
+		"""
+			treebest best -f {input.species_tree} -c {params.c} -d {params.d} -l {params.l} -L {params.L} -b {params.b} -k {params.k} -a {params.a} -F {params.F} -p {params.p} {input.cds_alignment} > {output.tree} 2>{output.tmp_tree} && touch {output.tree_done} 
+		"""
+
+rule tree_splitter:
+	input:
+		tree_done = config["dir"]["outdir"]+"genetrees/{i}_genetree.nhx_done",
+	output:
+		trees = directory(config["dir"]["outdir"]+"splitted_genetrees/{i}"),
+		tree_text = temp(	config["dir"]["outdir"]+"genetrees/{i}_tree.txt")
+	params:
+		table = 0,
+		split = "dups",
+		scripts = config["scripts"],
+                tree =config["dir"]["outdir"]+"genetrees/{i}_genetree.nhx",
+
+	shell:
+		"""
+			python {params.scripts}/ete_genetree_splitter.py -d {output.trees} --genetree {params.tree} --gene_node 0 --split {params.split} --output_format 9 && touch {output.tree_text}
+		"""
