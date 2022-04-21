@@ -1,0 +1,151 @@
+import glob
+
+configfile: "GSTF_test.json"
+
+SAMPLES = ["CDS"]
+
+rule all:
+    input:
+        config["dir"]["outdir"]+"GSTF_report.txt",
+
+
+rule reporting:
+        input:  
+                done = config["dir"]["outdir"]+"done.txt",
+                all_cds = config["dir"]["outdir"]+"pre_cluster_fasta/all_cds.fasta",
+                all_ptn = config["dir"]["outdir"]+"pre_cluster_fasta/all.fasta",
+                discarded = config["dir"]["outdir"]+"pre_cluster_fasta/all_discarded.fasta",
+                hcluster = config["dir"]["outdir"]+"hcluster/hcluster.tsv",
+                blast_all = config["dir"]["outdir"]+"blast/blast_all.tsv",
+                discarded_all = config["dir"]["outdir"]+"pre_cluster_fasta/all_discarded.fasta",
+                homologies = config["dir"]["outdir"]+"homology_splitted_trees/all_homology.csv",
+        params:
+                genetrees = config["dir"]["outdir"]+"genetrees/",
+                splitted_genetrees = config["dir"]["outdir"]+"splitted_genetrees/",
+        output: 
+                txt = config["dir"]["outdir"]+"GSTF_report.txt",
+		blast_input = temp(config["dir"]["outdir"]+"blast_input.txt"),
+		blast_output = temp(config["dir"]["outdir"]+"blast_output.txt")
+        shell:  
+                """ 
+                    
+                    no_of_input_cds=$(grep -c ">" {input.all_cds})
+                    no_of_translated_ptn=$(grep -c ">" {input.all_ptn})
+                    no_of_seq_by_species=$(grep ">" {input.all_cds} | sed \'s/.*_//g\' | sort | uniq -c)
+                    no_of_translated_ptn_by_species=$(grep ">" {input.all_ptn} | sed \'s/_1//g\' | sed \'s/.*_//g\' | sort | uniq -c)
+                    
+                    
+                    clusters=$(wc -l<{input.hcluster})
+                    orphans=$(awk '{{if ($6==1) print $0}}' {input.hcluster} | wc -l)
+                    clusters_with_two=$(awk '{{if ($6==2) print $0}}' {input.hcluster} | wc -l)
+                    large_clusters=$(awk '{{if ($6>500) print $0}}' {input.hcluster} | wc -l)
+
+                    # This should be updated based on max filter in hcluster_sg_parser
+		    considered_clusters=$(awk '{{if ($6<=500 && $6 >= 3) print $0}}' {input.hcluster} | wc -l)
+
+                    clusters_by_size=$(awk '{{print $6}}' {input.hcluster} | sort -n | uniq -c)
+                    
+                    grep ">" {input.all_ptn} | sed 's/>//g' | sort > {output.blast_input}
+                    awk '{{print $1}}' {input.blast_all} | sort | uniq > {output.blast_output}
+                    
+                    blast_missing=$(comm -23 {output.blast_input} {output.blast_output} | wc -l)
+
+		    genetrees=$(ls {params.genetrees}/*.nhx | wc -l)
+                    splitted_genetrees=$(ls {params.splitted_genetrees}/*/*.nhx | wc -l)
+                    
+                    
+                    
+                    echo "#################################################################" > {output.txt} 
+                    echo "#                                                               #" >> {output.txt} 
+                    echo "#                         GeneSeqToFamily                       #" >> {output.txt} 
+                    echo "#                                                               #" >> {output.txt}
+                    echo "#################################################################" >> {output.txt} 
+                    echo "\n\n\n" >> {output.txt}
+                    
+                    echo "------------------------------------" >> {output.txt}
+                    echo "Input data" >> {output.txt}
+                    echo "------------------------------------" >> {output.txt}
+                    echo "Total number of input CDS ${{no_of_input_cds}}" >> {output.txt}
+                    echo "\n" >> {output.txt}
+                    echo "Number of CDS sequences by species \n ${{no_of_seq_by_species}}" >> {output.txt}
+                    echo "\n------------------------------------" >> {output.txt}
+                    echo "Translation" >> {output.txt}
+                    echo "------------------------------------" >> {output.txt}
+                    
+                    
+                    echo "Total number of CDS translated into protein sequences ${{no_of_translated_ptn}}" >> {output.txt}
+                    echo "\n" >> {output.txt}
+                    echo "Number of CDS translated into protein sequences by species \n ${{no_of_translated_ptn_by_species}}" >> {output.txt}
+                    
+                    
+                    #echo "Number of discarded sequences" >> {output.txt}
+                    
+                    
+                    #for f in `echo {input.discarded}`
+                    #do
+                        
+                       # lines=`wc -l<${{f}}`
+                       # if ((${{lines}} > 0))
+                       # then
+                       #     echo "here"
+                       #     discarded=$(grep -c ">" ${{f}})
+                       #     echo "\t${{f}} - ${{discarded}}" >> {output.txt}
+                       # else
+                       #     echo "\t${{f}} - 0" >> {output.txt}
+                       # fi
+                        
+                    #done
+                    
+                    echo "\n------------------------------------" >> {output.txt}
+                    echo "Discarded sequences results" >> {output.txt}
+                    echo "------------------------------------" >> {output.txt}
+                    
+                    lines=`wc -l<{input.discarded_all}`
+                        echo "${{lines}} Sequences discarded in total." >> {output.txt}
+                        if ((${{lines}} > 0))
+                        then
+                            no_of_discarded_ptn_by_species=$(grep ">" {input.discarded_all} | sed 's/_1//g' | sed 's/.*_//g' | sort | uniq -c)
+                            echo "\n" >> {output.txt}
+                            echo "Sequences discarded by species \n ${{no_of_discarded_ptn_by_species}}" >> {output.txt}
+                        fi
+                    
+                    echo "\n------------------------------------" >> {output.txt}
+                    echo "BLAST results" >> {output.txt}
+                    echo "------------------------------------" >> {output.txt}
+                    
+                    echo "Sequences missing from BLAST output ${{blast_missing}}" >> {output.txt}
+                    
+                    echo "\n------------------------------------" >> {output.txt}
+                    echo "Clustering results" >> {output.txt}
+                    echo "------------------------------------" >> {output.txt}
+                    
+                    echo "Total number of clusters generated with hcluster_sg ${{clusters}}" >> {output.txt}
+                    echo "Number of clusters by size" >> {output.txt}
+                    echo "#clusters\tsize of cluster" >> {output.txt}
+                    echo "${{clusters_by_size}}" >> {output.txt}
+                    echo "Number of clusters with only one gene ${{orphans}}" >> {output.txt}
+                    echo "Number of clusters with only two genes ${{clusters_with_two}}" >> {output.txt}
+                    echo "Number of clusters with more than 500 genes ${{large_clusters}}" >> {output.txt}
+		    echo "Number of clusters considered in this run ${{considered_clusters}}" >> {output.txt}
+                    
+                    
+                    echo "\n------------------------------------" >> {output.txt}
+                    echo "GeneTrees results" >> {output.txt}
+                    echo "------------------------------------" >> {output.txt}
+                    
+                    echo "Number of Genetrees ${{genetrees}}" >> {output.txt}
+                    echo "Number of Splitted Genetrees ${{splitted_genetrees}}" >> {output.txt}
+                    
+                    
+                    echo "\n------------------------------------" >> {output.txt}
+                    echo "Homology results" >> {output.txt}
+                    echo "------------------------------------" >> {output.txt}
+                    
+                    homologies=$(awk '{{print $3}}' {input.homologies} | sort | uniq -c)
+                    
+                    
+                    echo "Inferred homologies" >> {output.txt}
+                    echo "${{homologies}}" >> {output.txt}
+                """
+
+

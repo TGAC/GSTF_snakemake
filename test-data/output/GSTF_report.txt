@@ -1,0 +1,75 @@
+#################################################################
+#                                                               #
+#                         GeneSeqToFamily                       #
+#                                                               #
+#################################################################
+
+
+
+
+------------------------------------
+Input data
+------------------------------------
+Total number of input CDS 39
+
+
+Number of CDS sequences by species 
+       3 canisfamiliaris
+      8 homosapiens
+     12 musmusculus
+      4 pantroglodytes
+      5 rattusnorvegicus
+      7 susscrofa
+
+------------------------------------
+Translation
+------------------------------------
+Total number of CDS translated into protein sequences 39
+
+
+Number of CDS translated into protein sequences by species 
+       3 canisfamiliaris
+      8 homosapiens
+     12 musmusculus
+      4 pantroglodytes
+      5 rattusnorvegicus
+      7 susscrofa
+
+------------------------------------
+Discarded sequences results
+------------------------------------
+0 Sequences discarded in total.
+
+------------------------------------
+BLAST results
+------------------------------------
+Sequences missing from BLAST output 0
+
+------------------------------------
+Clustering results
+------------------------------------
+Total number of clusters generated with hcluster_sg 3
+Number of clusters by size
+#clusters	size of cluster
+      2 10
+      1 18
+Number of clusters with only one gene 0
+Number of clusters with only two genes 0
+Number of clusters with more than 500 genes 0
+Number of clusters considered in this run 3
+
+------------------------------------
+GeneTrees results
+------------------------------------
+Number of Genetrees 3
+Number of Splitted Genetrees 6
+
+------------------------------------
+Homology results
+------------------------------------
+Inferred homologies
+     29 many-to-many
+     27 many-to-one
+     32 one-to-many
+     13 one-to-one
+     20 paralogs
