@@ -7,7 +7,7 @@ rule all:
 	input:
 		expand(config["dir"]["outdir"]+"genetrees/{i}_tree.txt",
 			   i=files)
-
+			   
 rule rename_ids:
 	input:
 		config["dir"]["outdir"]+"clusters/{i}_output.txt"
@@ -87,22 +87,22 @@ rule treebest:
 	shadow: "shallow"
 	shell:
 		"""
-			treebest best -f {input.species_tree} -c {params.c} -d {params.d} -l {params.l} -L {params.L} -b {params.b} -k {params.k} -a {params.a} -F {params.F} -p {params.p} {input.cds_alignment} > {output.tree} 2>{output.tmp_tree} && touch {output.tree_done} 
+			treebest best -f {input.species_tree} -c {params.c} -d {params.d} -l {params.l} -L {params.L} -b {params.b} -k {params.k} -a {params.a} -F {params.F} -p {params.p} {input.cds_alignment} > {output.tree} 2>{output.tmp_tree} && touch {output.tree_done}
 		"""
-
 rule tree_splitter:
-	input:
-		tree_done = config["dir"]["outdir"]+"genetrees/{i}_genetree.nhx_done",
-	output:
-		trees = directory(config["dir"]["outdir"]+"splitted_genetrees/{i}"),
-		tree_text = temp(	config["dir"]["outdir"]+"genetrees/{i}_tree.txt")
-	params:
-		table = 0,
-		split = "dups",
-		scripts = config["scripts"],
+        input:
+                tree_done = config["dir"]["outdir"]+"genetrees/{i}_genetree.nhx_done",
+        output:
+                trees = directory(config["dir"]["outdir"]+"splitted_genetrees/{i}"),
+                tree_text = temp(       config["dir"]["outdir"]+"genetrees/{i}_tree.txt")
+        params:
+                table = 0,
+                split = "species",
+                scripts = config["scripts"],
                 tree =config["dir"]["outdir"]+"genetrees/{i}_genetree.nhx",
-
-	shell:
-		"""
-			python {params.scripts}/ete_genetree_splitter.py -d {output.trees} --genetree {params.tree} --gene_node 0 --split {params.split} --output_format 9 && touch {output.tree_text}
-		"""
+                ingroup = config["ingroup"],
+                outgroup = config["outgroup"]
+        shell:
+                """
+                        python {params.scripts}/ete_genetree_splitter.py -d {output.trees} --genetree {params.tree} --ingroup {params.ingroup} --outgroup {params.outgroup} --split {params.split} gene_node 0 && touch {output.tree_text}
+                """
