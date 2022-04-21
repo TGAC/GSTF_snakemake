@@ -17,10 +17,13 @@ def blast_outputs(wildcards):
 	files = expand([config["dir"]["outdir"]+"{f}_blastp.tsv"], sample=SAMPLES)
 	return files
 
+def discarded_fasta(wildcards):
+    files = expand([config["dir"]["outdir"]+"pre_cluster_fasta/{sample}_discarded.fasta"], sample=SAMPLES)
+    return files
 
 rule all:
 	input:
-		config["dir"]["outdir"]+"done.txt", config["dir"]["outdir"]+"pre_cluster_fasta/all_cds.fasta"
+		config["dir"]["outdir"]+"done.txt", config["dir"]["outdir"]+"pre_cluster_fasta/all_cds.fasta", config["dir"]["outdir"]+"pre_cluster_fasta/all_discarded.fasta"
 
 rule transeq:
 	input:
@@ -58,6 +61,15 @@ rule cds_fasta_merge:
 			cat {input.fasta} > {output.fasta}
 		"""
 
+rule discarded_fasta_merge:
+    input:
+        fasta = discarded_fasta
+    output:
+        fasta = config["dir"]["outdir"]+"pre_cluster_fasta/all_discarded.fasta"
+    shell:
+        """
+            cat {input.fasta} > {output.fasta}
+        """
 rule fasta_merge:
 	input:
 		fasta = fasta_inputs
