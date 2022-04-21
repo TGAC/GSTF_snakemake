@@ -6,11 +6,11 @@ ENST00000421712_homosapiens:0.450187[&&NHX:S=homosapiens]
 (ENSRNOT00000064726_rattusnorvegicus:0.028323[&&NHX:S=rattusnorvegicus],
 ((ENSMUST00000041588_musmusculus:0[&&NHX:S=musmusculus],
 ENSMUST00000100505_musmusculus:0[&&NHX:S=musmusculus]
-):8.4e-05[&&NHX:D=Y:SIS=100:DCS=1.0000:S=musmusculus:T=29:B=80],
+):8.4e-05[&&NHX:D=Y:SIS=100:DCS=1.0000:S=musmusculus:T=29:B=83],
 (ENSMUST00000110806_musmusculus:0.000798[&&NHX:S=musmusculus],
 ENSMUST00000153440_musmusculus:0.017845[&&NHX:S=musmusculus]
-):0.005749[&&NHX:D=Y:SIS=100:DCS=1.0000:S=musmusculus:T=23:B=49]
-):0.03938[&&NHX:D=Y:SIS=100:DCS=1.0000:S=musmusculus:T=21:B=29]
+):0.005749[&&NHX:D=Y:SIS=100:DCS=1.0000:S=musmusculus:T=23:B=48]
+):0.03938[&&NHX:D=Y:SIS=100:DCS=1.0000:S=musmusculus:T=21:B=33]
 ):0.180826[&&NHX:D=N:S=rod:T=31:B=100]
 ):0[&&NHX:D=N:S=euarc:T=31:B=100],
 (ENSCAFT00000025950_canisfamiliaris:0.091499[&&NHX:S=canisfamiliaris],

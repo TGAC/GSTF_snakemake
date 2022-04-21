@@ -1,9 +1,9 @@
 
 
-Building a new DB, current time: 02/11/2022 17:13:17
-New DB name:   /hpc-home/thankia/MyComputer/scripts/git/GSTF_snakemake/test-data/output/blast_db/GSTF_blastdb
-New DB title:  test-data/output/pre_cluster_fasta/all.fasta
+Building a new DB, current time: 04/21/2022 16:33:53
+New DB name:   /hpc-home/thankia/MyComputer/scripts/git/GSTF_snakemake/GSTF_snakemake/test-data/output2/blast_db/GSTF_blastdb
+New DB title:  test-data/output2/pre_cluster_fasta/all.fasta
 Sequence type: Protein
 Keep MBits: T
 Maximum file size: 1000000000B
-Adding sequences from FASTA; added 39 sequences in 0.021606 seconds.
+Adding sequences from FASTA; added 39 sequences in 0.011374 seconds.
