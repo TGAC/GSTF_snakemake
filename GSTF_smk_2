@@ -10,9 +10,9 @@ rule all:
 			   
 rule rename_ids:
 	input:
-		config["dir"]["outdir"]+"clusters/{i}_output.txt"
+		config["dir"]["outdir"]+"clusters/{i,\d+}_output.txt"
 	output:
-		config["dir"]["outdir"]+"clusters/{i}_output.txt2"
+		config["dir"]["outdir"]+"clusters/{i,\d+}_output.txt2"
 	shell:
 		"""
 			sed 's/_/\t/g' {input} | awk 'NF{{NF-=1}};1' | sed 's/\s/_/g' > {output}
@@ -20,10 +20,10 @@ rule rename_ids:
 
 rule cluster_fasta:
 	input:
-		list = config["dir"]["outdir"]+"clusters/{i}_output.txt",
+		list = config["dir"]["outdir"]+"clusters/{i,\d+}_output.txt",
 		fasta = config["dir"]["outdir"]+"pre_cluster_fasta/all.fasta"
 	output:
-		config["dir"]["outdir"]+"cluster_ptn_fasta/{i}_output_ptn.fa"
+		config["dir"]["outdir"]+"cluster_ptn_fasta/{i,\d+}_output_ptn.fa"
 	shell:
 		"""
 			seqtk subseq {input.fasta} {input.list} > {output}
@@ -31,11 +31,11 @@ rule cluster_fasta:
 
 rule cluster_alignment:
 	input:
-		fasta = config["dir"]["outdir"]+"cluster_ptn_fasta/{i}_output_ptn.fa"
+		fasta = config["dir"]["outdir"]+"cluster_ptn_fasta/{i,\d+}_output_ptn.fa"
 	output:
-		ptn_alignment = config["dir"]["outdir"]+"cluster_ptn_alignment/{i}_ptn_alignment.fasta_aln"
+		ptn_alignment = config["dir"]["outdir"]+"cluster_ptn_alignment/{i,\d+}_ptn_alignment.fasta_aln"
 	params:
-		name = config["dir"]["outdir"]+"cluster_ptn_alignment/{i}_ptn_alignment",
+		name = config["dir"]["outdir"]+"cluster_ptn_alignment/{i,\d+}_ptn_alignment",
 		align_method = "clustalw_msa"
 	shell:
 		"""
@@ -44,10 +44,10 @@ rule cluster_alignment:
 
 rule cluster_cds:
 	input:
-		list = config["dir"]["outdir"]+"clusters/{i}_output.txt2",
+		list = config["dir"]["outdir"]+"clusters/{i,\d+}_output.txt2",
 		fasta = config["dir"]["outdir"]+"pre_cluster_fasta/all_cds.fasta"
 	output:
-		config["dir"]["outdir"]+"cluster_cds_fasta/{i}_output_cds.fa"
+		config["dir"]["outdir"]+"cluster_cds_fasta/{i,\d+}_output_cds.fa"
 	shell:
 		"""
 			seqtk subseq {input.fasta} {input.list} > {output}
@@ -55,10 +55,10 @@ rule cluster_cds:
 
 rule tranalign:
 	input:
-		cds_fasta = config["dir"]["outdir"]+"cluster_cds_fasta/{i}_output_cds.fa",
-		ptn_alignment = config["dir"]["outdir"]+"cluster_ptn_alignment/{i}_ptn_alignment.fasta_aln"
+		cds_fasta = config["dir"]["outdir"]+"cluster_cds_fasta/{i,\d+}_output_cds.fa",
+		ptn_alignment = config["dir"]["outdir"]+"cluster_ptn_alignment/{i,\d+}_ptn_alignment.fasta_aln"
 	output:
-		cds_alignment = config["dir"]["outdir"]+"cluster_cds_alignment/{i}_cds_alignment.fasta_aln",  
+		cds_alignment = config["dir"]["outdir"]+"cluster_cds_alignment/{i,\d+}_cds_alignment.fasta_aln",  
 	params:
 		table = 0
 	shell:
@@ -68,12 +68,12 @@ rule tranalign:
 
 rule treebest:
 	input:
-		cds_alignment = config["dir"]["outdir"]+"cluster_cds_alignment/{i}_cds_alignment.fasta_aln",
+		cds_alignment = config["dir"]["outdir"]+"cluster_cds_alignment/{i,\d+}_cds_alignment.fasta_aln",
 		species_tree = config["dir"]["data"]+"species.nhx",
 	output:
-		tree = config["dir"]["outdir"]+"genetrees/{i}_genetree.nhx",
-		tree_done =config["dir"]["outdir"]+"genetrees/{i}_genetree.done",
-		tmp_tree = config["dir"]["outdir"]+"genetrees/{i}_genetree.nhx_done"
+		tree = config["dir"]["outdir"]+"genetrees/{i,\d+}_genetree.nhx",
+		tree_done =config["dir"]["outdir"]+"genetrees/{i,\d+}_genetree.done",
+		tmp_tree = config["dir"]["outdir"]+"genetrees/{i,\d+}_genetree.nhx_done"
 	params:
 		c = 2,
 		d = 0.15,
@@ -83,7 +83,7 @@ rule treebest:
 		k = "e",
 		a = "e",
 		F = 11,
-		p = "{i}"
+		p = "{i,\d+}"
 	shadow: "shallow"
 	shell:
 		"""
@@ -91,15 +91,15 @@ rule treebest:
 		"""
 rule tree_splitter:
         input:
-                tree_done = config["dir"]["outdir"]+"genetrees/{i}_genetree.nhx_done",
+                tree_done = config["dir"]["outdir"]+"genetrees/{i,\d+}_genetree.nhx_done",
         output:
-                trees = directory(config["dir"]["outdir"]+"splitted_genetrees/{i}"),
-                tree_text = temp(       config["dir"]["outdir"]+"genetrees/{i}_tree.txt")
+                trees = directory(config["dir"]["outdir"]+"splitted_genetrees/{i,\d+}"),
+                tree_text = temp(       config["dir"]["outdir"]+"genetrees/{i,\d+}_tree.txt")
         params:
                 table = 0,
                 split = "species",
                 scripts = config["scripts"],
-                tree =config["dir"]["outdir"]+"genetrees/{i}_genetree.nhx",
+                tree =config["dir"]["outdir"]+"genetrees/{i,\d+}_genetree.nhx",
                 ingroup = config["ingroup"],
                 outgroup = config["outgroup"]
         shell:

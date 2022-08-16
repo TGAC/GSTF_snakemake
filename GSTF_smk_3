@@ -4,7 +4,7 @@ from pathlib import Path
 
 configfile: "GSTF_test.json"
 
-directories, files = glob_wildcards(config["dir"]["outdir"]+'splitted_genetrees/{dir}/{file}_genetree.nhx')
+directories, files = glob_wildcards(config["dir"]["outdir"]+'splitted_genetrees/{dir,\d+}/{file}_genetree.nhx')
 
 def CNV_list(wildcards):
     CNVs = expand([config["dir"]["outdir"]+'cnv_splitted_trees/{dir}/{file}_cnv.csv'],
@@ -25,9 +25,9 @@ rule all:
 
 rule homology_classifier:
 	input:
-		config["dir"]["outdir"]+"splitted_genetrees/{dir}/{file}_genetree.nhx"
+		config["dir"]["outdir"]+"splitted_genetrees/{dir,\d+}/{file}_genetree.nhx"
 	output:
-		 config["dir"]["outdir"]+"homology_splitted_trees/{dir}/{file}_homology.csv"
+		 config["dir"]["outdir"]+"homology_splitted_trees/{dir,\d+}/{file}_homology.csv"
 	params:
 		filters = "one-to-one,one-to-many,many-to-one,many-to-many,paralogs",
 		out_format = "tabular",
@@ -39,9 +39,9 @@ rule homology_classifier:
 
 rule homology_cnv:
 	input:
-		config["dir"]["outdir"]+"splitted_genetrees/{dir}/{file}_genetree.nhx"
+		config["dir"]["outdir"]+"splitted_genetrees/{dir,\d+}/{file}_genetree.nhx"
 	output:
-		config["dir"]["outdir"]+"cnv_splitted_trees/{dir}/{file}_cnv.csv"
+		config["dir"]["outdir"]+"cnv_splitted_trees/{dir,\d+}/{file}_cnv.csv"
 	params:
 		species =  config["species"],
 		scripts = config["scripts"]
@@ -57,6 +57,8 @@ rule cnv_cat:
                 config["dir"]["outdir"]+"cnv_splitted_trees/all_cnv.csv"
         params:
                 species =  config["species"],
+        resources:
+                partition = "ei-medium"
         shell:
                 """
 			species_list={params.species}
@@ -72,6 +74,8 @@ rule homology_cat:
                 homology_list
         output:
                 config["dir"]["outdir"]+"homology_splitted_trees/all_homology.csv"
+        resources:
+                partition = "ei-medium"
         shell:
                 """
                         for f in {input}; do cat ${{f}} >> {output}; done
