@@ -1,0 +1,14 @@
+{
+	"dir" :
+	{
+		"data" : "test-data/input/",
+		"outdir" : "test-data/output/"
+	},
+	"species" : "homosapiens,pantroglodytes,rattusnorvegicus,musmusculus,canisfamiliaris,susscrofa",
+	"scripts" : "scripts/",
+	"ingroup" : "homosapiens,pantroglodytes,rattusnorvegicus,musmusculus,canisfamiliaris",
+	"outgroup" : "susscrofa"
+
+}
+
+

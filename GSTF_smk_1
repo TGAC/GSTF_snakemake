@@ -1,0 +1,190 @@
+import glob
+
+configfile: "GSTF_test.json"
+
+SAMPLES = ["CDS"]
+
+def cds_fasta_inputs(wildcards):
+	files = expand([config["dir"]["data"]+"{sample}.fa"], sample=SAMPLES)
+	return files
+
+
+def fasta_inputs(wildcards):
+	files = expand([config["dir"]["outdir"]+"pre_cluster_fasta/{sample}_filtered.fasta"], sample=SAMPLES)
+	return files
+
+def blast_outputs(wildcards):
+	files = expand([config["dir"]["outdir"]+"{f}_blastp.tsv"], sample=SAMPLES)
+	return files
+
+def discarded_fasta(wildcards):
+    files = expand([config["dir"]["outdir"]+"pre_cluster_fasta/{sample}_discarded.fasta"], sample=SAMPLES)
+    return files
+
+rule all:
+	input:
+		config["dir"]["outdir"]+"done.txt", config["dir"]["outdir"]+"pre_cluster_fasta/all_cds.fasta", config["dir"]["outdir"]+"pre_cluster_fasta/all_discarded.fasta"
+
+rule transeq:
+	input:
+		fasta = config["dir"]["data"]+"{sample}.fa"
+	output:
+		fasta = config["dir"]["outdir"]+"pre_cluster_fasta/{sample}_translated.fasta"
+	params:
+		frame = 1,
+		table = 0
+	shell:
+		"""
+			transeq --sequence {input.fasta} --outseq {output.fasta} --frame {params.frame} --table {params.table} -trim 
+		"""
+
+rule filter_fasta:
+	input:
+		fasta = config["dir"]["outdir"]+"pre_cluster_fasta/{sample}_translated.fasta",
+	output:
+		fasta = config["dir"]["outdir"]+"pre_cluster_fasta/{sample}_filtered.fasta",
+		discarded = config["dir"]["outdir"]+"pre_cluster_fasta/{sample}_discarded.fasta", 
+	params: 
+		scripts = config["scripts"]
+	shell:
+		"""
+			python {params.scripts}/filter_by_fasta_ids.py -i {input.fasta} --sequence_regexp '^[^*]+$' --dedup -o {output.fasta} -d {output.discarded}
+		"""
+
+rule cds_fasta_merge:
+	input:
+		fasta = cds_fasta_inputs
+	output:
+		fasta = config["dir"]["outdir"]+"pre_cluster_fasta/all_cds.fasta"
+	shell:
+		"""
+			cat {input.fasta} > {output.fasta}
+		"""
+
+rule discarded_fasta_merge:
+    input:
+        fasta = discarded_fasta
+    output:
+        fasta = config["dir"]["outdir"]+"pre_cluster_fasta/all_discarded.fasta"
+    shell:
+        """
+            cat {input.fasta} > {output.fasta}
+        """
+rule fasta_merge:
+	input:
+		fasta = fasta_inputs
+	output:
+		fasta = config["dir"]["outdir"]+"pre_cluster_fasta/all.fasta"
+	shell:
+		"""
+			cat {input.fasta} > {output.fasta}
+		"""
+
+rule makeblastdb:
+	input:
+		fasta = config["dir"]["outdir"]+"pre_cluster_fasta/all.fasta",
+	output:
+		info = config["dir"]["outdir"]+"blast_db/makeblast_info.txt",
+	params:
+		db = config["dir"]["outdir"]+"blast_db/GSTF_blastdb",
+	shell:
+		"""
+			makeblastdb -out {params.db}  -hash_index -in {input.fasta} -dbtype prot > {output.info}
+		"""
+
+checkpoint fasta_split:
+	input:
+		fasta = config["dir"]["outdir"]+"pre_cluster_fasta/all.fasta",
+	output:
+		chunks = directory(config["dir"]["outdir"]+"chunks"),
+		fasta = config["dir"]["outdir"]+"fasplit.txt",
+	params:
+		outname = config["dir"]["outdir"]+"chunks/GSTF",
+		outdir = config["dir"]["outdir"]+"chunks",
+		chunks = 1000
+	shell:
+		"""
+			mkdir -p {params.outdir} && faSplit sequence {input.fasta} {params.chunks} {params.outname} && touch {output.fasta} 	
+		"""
+
+def aggregate_fasplit(wildcards):
+	checkpoint_output = checkpoints.fasta_split.get(**wildcards).output[0]
+	return expand(config["dir"]["outdir"]+"blast/{f}_blastp.tsv",
+		   f=glob_wildcards(os.path.join(checkpoint_output, "GSTF{f}.fa")).f)
+
+rule blastp:
+	input:
+		fasta = config["dir"]["outdir"]+"chunks/GSTF{f}.fa",
+		info = config["dir"]["outdir"]+"blast_db/makeblast_info.txt",
+	output: 
+		tsv = temp(config["dir"]["outdir"]+"blast/{f}_blastp.tsv"),
+		txt = temp(config["dir"]["outdir"]+"blast/{f}_blastp.txt")
+	params:
+		db = config["dir"]["outdir"]+"blast_db/GSTF_blastdb",
+		evalue = 1e-10,
+		outfmt = '6',
+		coverage = 0,
+		threads = 8
+	shell:
+		"""
+			blastp -query {input.fasta} -db {params.db} -task blastp -evalue {params.evalue} -out {output.tsv} -outfmt {params.outfmt} -seg no -max_hsps 1 -qcov_hsp_perc {params.coverage} -num_threads {params.threads} && touch {output.txt}
+		"""
+
+rule aggregate_blast:
+		input:
+				aggregate_fasplit
+		output:
+				blast_all = config["dir"]["outdir"]+"blast/blast_all.tsv"
+		shell:
+				"cat {input} > {output.blast_all}"
+
+
+rule blast_parser:
+	input:
+		tsv = config["dir"]["outdir"]+"blast/blast_all.tsv"
+	output:
+		tsv = config["dir"]["outdir"]+"blast/blast_parser.tsv"
+	params: 
+		scripts = config["scripts"]
+	resources:
+		partition = "ei-largemem",
+		mem_mb = "1024000",
+		disk_mb = "512000"
+	shell:
+		"""
+			python {params.scripts}/blast_parser.py  -i {input.tsv} -o {output.tsv} -r
+		"""
+
+rule hcluster_sg:
+	input:
+		tsv = config["dir"]["outdir"]+"blast/blast_parser.tsv"
+	output:
+		tsv = config["dir"]["outdir"]+"hcluster/hcluster.tsv"
+	params:
+		w = 20,
+		s = 0.5,
+		m = 500,
+		b = 0.1,
+		L = 2
+	shell:
+		"""
+			hcluster_sg -w {params.w} -s {params.s} -m {params.m} -b {params.b} -L {params.L} {input.tsv} > {output.tsv}
+		"""
+
+rule hcluster_sg_parser:
+	input:
+		tsv = config["dir"]["outdir"]+"hcluster/hcluster.tsv"
+	output:
+		clusters = directory(config["dir"]["outdir"]+"clusters"),
+		discarded_min = config["dir"]["outdir"]+"hcluster/hcluster_discarded_min.tsv",
+		discarded_max = config["dir"]["outdir"]+"hcluster/hcluster_discarded_max.tsv",
+		done = config["dir"]["outdir"]+"done.txt",
+	params:
+		m = 3,
+		M = 500,
+		scripts = config["scripts"]
+	shell:
+		"""
+			python {params.scripts}/hcluster_sg_parser.py -m {params.m} -M {params.M} -d {output.clusters} {input.tsv} {output.discarded_min} {output.discarded_max} && touch {output.done}
+		"""
+ 

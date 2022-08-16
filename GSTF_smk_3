@@ -1,0 +1,83 @@
+import os 
+
+from pathlib import Path   
+
+configfile: "GSTF_test.json"
+
+directories, files = glob_wildcards(config["dir"]["outdir"]+'splitted_genetrees/{dir,\d+}/{file}_genetree.nhx')
+
+def CNV_list(wildcards):
+    CNVs = expand([config["dir"]["outdir"]+'cnv_splitted_trees/{dir}/{file}_cnv.csv'],
+               zip, dir=directories, file=files)
+    return CNVs
+    
+def homology_list(wildcards):
+    homologies = expand([config["dir"]["outdir"]+'homology_splitted_trees/{dir}/{file}_homology.csv'],
+               zip, dir=directories, file=files)
+    return homologies
+ 
+
+rule all:
+	input: 
+	    expand([config["dir"]["outdir"]+'homology_splitted_trees/{dir}/{file}_homology.csv',config["dir"]["outdir"]+"cnv_splitted_trees/{dir}/{file}_cnv.csv"], zip, dir=directories, file=files), config["dir"]["outdir"]+"cnv_splitted_trees/all_cnv.csv", config["dir"]["outdir"]+"homology_splitted_trees/all_homology.csv"
+
+
+
+rule homology_classifier:
+	input:
+		config["dir"]["outdir"]+"splitted_genetrees/{dir,\d+}/{file}_genetree.nhx"
+	output:
+		 config["dir"]["outdir"]+"homology_splitted_trees/{dir,\d+}/{file}_homology.csv"
+	params:
+		filters = "one-to-one,one-to-many,many-to-one,many-to-many,paralogs",
+		out_format = "tabular",
+		scripts = config["scripts"]
+	shell:
+		"""
+			python {params.scripts}/ete_homology_classifier.py --genetree {input} --out_format {params.out_format} --filters {params.filters} > {output}  
+		"""	
+
+rule homology_cnv:
+	input:
+		config["dir"]["outdir"]+"splitted_genetrees/{dir,\d+}/{file}_genetree.nhx"
+	output:
+		config["dir"]["outdir"]+"cnv_splitted_trees/{dir,\d+}/{file}_cnv.csv"
+	params:
+		species =  config["species"],
+		scripts = config["scripts"]
+	shell:
+		"""
+			python {params.scripts}/ete_gene_cnv.py --genetree {input} --speciesorder '{params.species}' > {output}
+		"""	
+
+rule cnv_cat:
+        input:
+                CNV_list
+        output:
+                config["dir"]["outdir"]+"cnv_splitted_trees/all_cnv.csv"
+        params:
+                species =  config["species"],
+        resources:
+                partition = "ei-medium"
+        shell:
+                """
+			species_list={params.species}
+			new_sp="gene\t${{species_list//,/\t}}"
+			echo $new_sp > {output}
+			for f in {input}; do cat ${{f}} >> {output}; done
+			sed -i "s/${{new_sp}}//g" {output} 
+			sed -i '/^$/d' {output}
+                """     
+                
+rule homology_cat:
+        input:
+                homology_list
+        output:
+                config["dir"]["outdir"]+"homology_splitted_trees/all_homology.csv"
+        resources:
+                partition = "ei-medium"
+        shell:
+                """
+                        for f in {input}; do cat ${{f}} >> {output}; done
+                """     
+
